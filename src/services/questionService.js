@@ -6,11 +6,6 @@ export const fetchQuestions = async (fileName) => {
     try {
         const response = await axios.get(`${API_BASE_URL}/questions`, {
             params: { file_name: fileName },
-            headers: {
-                "Cache-Control": "no-cache",
-                Pragma: "no-cache",
-                Expires: "0",
-            },
         });
         return response.data.data.questions || [];
     } catch (error) {
