@@ -14,7 +14,7 @@ const ImageMultipleRegions = ({ onImageSelect, onBoxesChange, question, onQuesti
     // Data from API
     const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
     const { data: questions, hasUnsavedChanges, updateData: updateQuestions, saveChanges: saveQuestions } = useUnsavedChanges([]);
-    console.log(questions, "quesions")
+    // console.log(...questions, "quesions")
 
     // Bounding boxes
     const [boxes, setBoxes] = useState([]);
