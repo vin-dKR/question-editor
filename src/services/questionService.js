@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'https://question-banks.netlify.app/api'
+const API_BASE_URL = 'http://localhost:3001/api'
 
 export const fetchQuestions = async (fileName) => {
     try {

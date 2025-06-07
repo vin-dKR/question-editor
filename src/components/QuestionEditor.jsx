@@ -9,13 +9,27 @@ const QuestionEditor = ({ question, onUpdate, onToggleImageType }) => {
     const [editingField, setEditingField] = useState(null);
     const [tempValues, setTempValues] = useState({});
 
-    const questionTypes = ['Subjective', 'Objective'];
+    const questionTypes = [
+        'Subjective',
+        'Single Correct Type Questions',
+        'Multiple Correct Type Questions',
+        'Comprehension Type Questions',
+        'Matrix Match Type Question',
+        'Other/Miscellaneous'
+    ];
+
     const sectionNames = [
         'EXERCISE (S-1)',
         'EXERCISE (S-2)',
-        'EXERCISE (S-3)',
-        'EXERCISE (S-4)'
+        'EXERCISE (O-1)',
+        'EXERCISE (O-2)',
+        'EXERCISE (J-M)',
+        'EXERCISE (J-A)',
+        'EXERCISE (CBSE)',
+        'EXERCISE (E-1)',
+        'EXERCISE (E-2)'
     ];
+
 
     const handlePropertyChange = (property, value) => {
         const updatedQuestion = {
