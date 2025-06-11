@@ -261,6 +261,18 @@ const QuestionEditor = ({ question, onUpdate, onToggleImageType }) => {
         const isEditing = editingField === property;
         const value = isEditing ? (tempValues[property] ?? question[property] ?? '') : (question[property] ?? '');
 
+        // Special handling for answer field based on question type
+        if (property === 'answer') {
+            const questionType = question.question_type?.toLowerCase();
+            if (questionType === 'subjective') {
+                return renderTextField(label, property, value, isEditing);
+            } else if (questionType === 'single correct type questions') {
+                return renderSingleCorrectAnswer(label, property, value, isEditing);
+            } else if (questionType === 'multiple correct type questions') {
+                return renderMultipleCorrectAnswer(label, property, value, isEditing);
+            }
+        }
+
         return (
             <div className="relative">
                 <div className="flex items-center justify-between mb-1">
@@ -326,6 +338,189 @@ const QuestionEditor = ({ question, onUpdate, onToggleImageType }) => {
                         >
                             Cancel
                         </button>
+                    </div>
+                ) : (
+                    <div className="w-full px-2 py-1 bg-gray-50 rounded-lg border border-gray-200 text-sm">
+                        {value || 'Not set'}
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    const renderTextField = (label, property, value, isEditing) => {
+        return (
+            <div className="relative">
+                <div className="flex items-center justify-between mb-1">
+                    <label className="block text-sm font-medium text-gray-700">{label}</label>
+                    {!isEditing && (
+                        <button
+                            onClick={() => {
+                                setEditingField(property);
+                                setTempValues(prev => ({
+                                    ...prev,
+                                    [property]: question[property] ?? ''
+                                }));
+                            }}
+                            className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                            </svg>
+                        </button>
+                    )}
+                </div>
+                {isEditing ? (
+                    <div className="flex gap-2">
+                        <textarea
+                            value={value}
+                            onChange={e => handleTempChange(property, e.target.value)}
+                            onBlur={() => handleEditComplete(property)}
+                            rows={3}
+                            className="flex-1 px-2 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        />
+                        <button
+                            onClick={() => {
+                                setEditingField(null);
+                                setTempValues(prev => {
+                                    const newValues = { ...prev };
+                                    delete newValues[property];
+                                    return newValues;
+                                });
+                            }}
+                            className="px-2 py-1 text-gray-500 hover:text-gray-700 text-sm"
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                ) : (
+                    <div className="w-full px-2 py-1 bg-gray-50 rounded-lg border border-gray-200 text-sm">
+                        {value || 'Not set'}
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    const renderSingleCorrectAnswer = (label, property, value, isEditing) => {
+        const options = ['A', 'B', 'C', 'D'];
+        return (
+            <div className="relative">
+                <div className="flex items-center justify-between mb-1">
+                    <label className="block text-sm font-medium text-gray-700">{label}</label>
+                    {!isEditing && (
+                        <button
+                            onClick={() => {
+                                setEditingField(property);
+                                setTempValues(prev => ({
+                                    ...prev,
+                                    [property]: question[property] ?? ''
+                                }));
+                            }}
+                            className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                            </svg>
+                        </button>
+                    )}
+                </div>
+                {isEditing ? (
+                    <div className="flex gap-2">
+                        <select
+                            value={value}
+                            onChange={e => handleTempChange(property, e.target.value)}
+                            onBlur={() => handleEditComplete(property)}
+                            className="flex-1 px-2 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        >
+                            <option value="">Select Answer</option>
+                            {options.map(option => (
+                                <option key={option} value={option}>{option}</option>
+                            ))}
+                        </select>
+                        <button
+                            onClick={() => {
+                                setEditingField(null);
+                                setTempValues(prev => {
+                                    const newValues = { ...prev };
+                                    delete newValues[property];
+                                    return newValues;
+                                });
+                            }}
+                            className="px-2 py-1 text-gray-500 hover:text-gray-700 text-sm"
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                ) : (
+                    <div className="w-full px-2 py-1 bg-gray-50 rounded-lg border border-gray-200 text-sm">
+                        {value || 'Not set'}
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    const renderMultipleCorrectAnswer = (label, property, value, isEditing) => {
+        const options = ['A', 'B', 'C', 'D'];
+        const selectedValues = value ? value.split(',').map(v => v.trim()) : [];
+        
+        return (
+            <div className="relative">
+                <div className="flex items-center justify-between mb-1">
+                    <label className="block text-sm font-medium text-gray-700">{label}</label>
+                    {!isEditing && (
+                        <button
+                            onClick={() => {
+                                setEditingField(property);
+                                setTempValues(prev => ({
+                                    ...prev,
+                                    [property]: question[property] ?? ''
+                                }));
+                            }}
+                            className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                            </svg>
+                        </button>
+                    )}
+                </div>
+                {isEditing ? (
+                    <div className="flex flex-col gap-2">
+                        <div className="flex flex-wrap gap-2">
+                            {options.map(option => (
+                                <label key={option} className="flex items-center gap-2 px-3 py-1 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedValues.includes(option)}
+                                        onChange={(e) => {
+                                            const newValues = e.target.checked
+                                                ? [...selectedValues, option]
+                                                : selectedValues.filter(v => v !== option);
+                                            handleTempChange(property, newValues.join(', '));
+                                        }}
+                                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                    />
+                                    <span className="text-sm">{option}</span>
+                                </label>
+                            ))}
+                        </div>
+                        <div className="flex justify-end">
+                            <button
+                                onClick={() => {
+                                    setEditingField(null);
+                                    setTempValues(prev => {
+                                        const newValues = { ...prev };
+                                        delete newValues[property];
+                                        return newValues;
+                                    });
+                                }}
+                                className="px-2 py-1 text-gray-500 hover:text-gray-700 text-sm"
+                            >
+                                Cancel
+                            </button>
+                        </div>
                     </div>
                 ) : (
                     <div className="w-full px-2 py-1 bg-gray-50 rounded-lg border border-gray-200 text-sm">
