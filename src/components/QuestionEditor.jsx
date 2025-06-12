@@ -591,7 +591,8 @@ const QuestionEditor = ({ question, onUpdate, onToggleImageType }) => {
                         <h4 className="text-sm font-semibold text-gray-700">Options</h4>
                         <button
                             onClick={() => {
-                                const newOptions = [...(question.options || []), { text: '', is_correct: false }];
+                                const newOptions = [...(question.options || [])];
+                                newOptions.push('');
                                 handlePropertyChange('options', newOptions);
                             }}
                             className="px-2 py-1 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition-colors"
@@ -601,20 +602,17 @@ const QuestionEditor = ({ question, onUpdate, onToggleImageType }) => {
                     </div>
                     <div className="space-y-2">
                         {(question.options || []).map((option, index) => (
-                            <div key={option.id || index} className="flex items-center gap-2">
+                            <div key={index} className="flex items-center gap-2">
                                 <span className="text-sm font-medium text-gray-500 w-6">{index + 1}.</span>
                                 {editingField === `option_${index}` ? (
                                     <>
                                         <input
                                             type="text"
-                                            value={tempValues[`option_${index}`] ?? option.text ?? ''}
+                                            value={tempValues[`option_${index}`] ?? option ?? ''}
                                             onChange={e => handleTempChange(`option_${index}`, e.target.value)}
                                             onBlur={() => {
                                                 const newOptions = [...question.options];
-                                                newOptions[index] = {
-                                                    ...option,
-                                                    text: tempValues[`option_${index}`]
-                                                };
+                                                newOptions[index] = tempValues[`option_${index}`];
                                                 handlePropertyChange('options', newOptions);
                                             }}
                                             className="flex-1 px-2 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
@@ -644,7 +642,7 @@ const QuestionEditor = ({ question, onUpdate, onToggleImageType }) => {
                                                 setEditingField(`option_${index}`);
                                                 setTempValues(prev => ({
                                                     ...prev,
-                                                    [`option_${index}`]: option.text ?? ''
+                                                    [`option_${index}`]: option ?? ''
                                                 }));
                                             }}
                                             className="p-1 text-gray-400 hover:text-gray-600"
@@ -657,7 +655,8 @@ const QuestionEditor = ({ question, onUpdate, onToggleImageType }) => {
                                 )}
                                 <button
                                     onClick={() => {
-                                        const newOptions = question.options.filter((_, i) => i !== index);
+                                        const newOptions = [...question.options];
+                                        newOptions.splice(index, 1);
                                         handlePropertyChange('options', newOptions);
                                     }}
                                     className="p-1 text-red-500 hover:text-red-600"
