@@ -498,7 +498,14 @@ const QuestionEditor = ({ question, onUpdate, onToggleImageType }) => {
                                             const newValues = e.target.checked
                                                 ? [...selectedValues, option]
                                                 : selectedValues.filter(v => v !== option);
-                                            handleTempChange(property, newValues.join(', '));
+                                            const answerString = newValues.join(', ');
+                                            handleTempChange(property, answerString);
+                                            // Immediately update the question with the new answer
+                                            const updatedQuestion = {
+                                                ...question,
+                                                [property]: answerString
+                                            };
+                                            onUpdate(updatedQuestion);
                                         }}
                                         className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                                     />
