@@ -4,6 +4,7 @@ import QuestionEditor from './QuestionEditor';
 import useUnsavedChanges from '../hooks/useUnsavedChanges';
 import { cropAndUploadImage } from '../utils/imageUpload';
 import { fetchQuestions, updateQuestion, prepareQuestionUpdateData } from '../services/questionService';
+import toast, { Toaster } from 'react-hot-toast';
 
 const ImageMultipleRegions = ({ onImageSelect, onBoxesChange, question, onQuestionChange }) => {
     // File + local preview
@@ -28,6 +29,7 @@ const ImageMultipleRegions = ({ onImageSelect, onBoxesChange, question, onQuesti
     const [isUploading, setIsUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
     const [uploadStatus, setUploadStatus] = useState('');
+    const [isUpdating, setIsUpdating] = useState(false);
 
     const [selectedImages, setSelectedImages] = useState([]);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -375,15 +377,91 @@ const ImageMultipleRegions = ({ onImageSelect, onBoxesChange, question, onQuesti
         }
     };
 
+    const handleUpdateAllQuestions = async (fileName) => {
+        if (!fileName) {
+            toast.error('No file name provided');
+            return;
+        }
+
+        // Start the update process in the background
+        const updatePromise = new Promise(async (resolve, reject) => {
+            try {
+                // Get all questions for this file
+                const questionsToUpdate = questions.filter(q => q.file_name === fileName);
+                
+                // Update each question in the background
+                const updatePromises = questionsToUpdate.map(async (question) => {
+                    try {
+                        const updateData = prepareQuestionUpdateData(question);
+                        await updateQuestion(question.id, updateData);
+                        return { success: true, questionId: question.id };
+                    } catch (error) {
+                        console.error(`Failed to update question ${question.id}:`, error);
+                        return { success: false, questionId: question.id, error };
+                    }
+                });
+
+                const results = await Promise.all(updatePromises);
+                const failedUpdates = results.filter(r => !r.success);
+
+                if (failedUpdates.length > 0) {
+                    reject(new Error(`${failedUpdates.length} questions failed to update`));
+                } else {
+                    resolve();
+                }
+            } catch (error) {
+                reject(error);
+            } finally {
+                setIsUpdating(false);
+            }
+        });
+
+        // Show the toast notification
+        toast.promise(updatePromise, {
+            loading: 'Updating questions in background...',
+            success: 'All questions updated successfully!',
+            error: (err) => `Failed to update: ${err.message}`
+        });
+
+        // Immediately move to next file if available
+        if (currentImageIndex < selectedImages.length - 1) {
+            handleNextImage();
+        }
+    };
+
     return (
         <div className="min-h-screen bg-gray-100">
+            <Toaster 
+                position="top-right"
+                toastOptions={{
+                    duration: 4000,
+                    style: {
+                        background: '#363636',
+                        color: '#fff',
+                    },
+                    success: {
+                        duration: 3000,
+                        iconTheme: {
+                            primary: '#4ade80',
+                            secondary: '#fff',
+                        },
+                    },
+                    error: {
+                        duration: 4000,
+                        iconTheme: {
+                            primary: '#ef4444',
+                            secondary: '#fff',
+                        },
+                    },
+                }}
+            />
             {/* Navbar */}
             <nav className="bg-white shadow-lg border-b border-gray-200 sticky top-0 z-50">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between items-center h-16">
                         <div className="flex items-center">
                             <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                                🖼️ Multi-Region Crop/Select
+                                🖼️ Question Editor
                             </h1>
                         </div>
 
@@ -453,7 +531,7 @@ const ImageMultipleRegions = ({ onImageSelect, onBoxesChange, question, onQuesti
             )}
 
             {/* Main Content */}
-            <div className="p-6">
+            <div className="">
                 {!selectedImage ? (
                     <div className="flex items-center justify-center h-96">
                         <div className="text-center">
@@ -584,7 +662,7 @@ const ImageMultipleRegions = ({ onImageSelect, onBoxesChange, question, onQuesti
                 )}
 
                 {/* Navigation Controls */}
-                <div className="flex items-center justify-between mt-4">
+                <div className="flex items-center justify-between mt-4 px-4">
                     <button
                         onClick={handlePrevImage}
                         disabled={currentImageIndex === 0}
@@ -598,9 +676,10 @@ const ImageMultipleRegions = ({ onImageSelect, onBoxesChange, question, onQuesti
                         </svg>
                         Previous
                     </button>
-                    <span className="text-sm text-gray-600">
-                        Image {currentImageIndex + 1} of {selectedImages.length}
-                    </span>
+                        <span className="text-sm text-gray-600">
+                            Image {currentImageIndex + 1} of {selectedImages.length}
+                        </span>
+                    
                     <button
                         onClick={handleNextImage}
                         disabled={currentImageIndex === selectedImages.length - 1}
@@ -614,6 +693,30 @@ const ImageMultipleRegions = ({ onImageSelect, onBoxesChange, question, onQuesti
                             <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
                         </svg>
                     </button>
+
+                    <div className="flex items-center gap-4">
+                        {questions && questions.length > 0 && (
+                            <button
+                                onClick={() => handleUpdateAllQuestions(fileName)}
+                                disabled={isUpdating}
+                                className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg shadow-sm transition-all font-medium flex items-center gap-2"
+                            >
+                                {isUpdating ? (
+                                    <>
+                                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        Updating All Questions...
+                                    </>
+                                ) : (
+                                    <>
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                                        </svg>
+                                        Update + Next
+                                    </>
+                                )}
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

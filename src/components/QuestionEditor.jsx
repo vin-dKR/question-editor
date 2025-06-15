@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import { deleteImageFromSupabase } from '../utils/imageUpload';
 import { updateQuestion, prepareQuestionUpdateData } from '../services/questionService';
 
-const QuestionEditor = ({ question, onUpdate, onToggleImageType }) => {
+const QuestionEditor = ({ question, onUpdate, onToggleImageType, onUpdateAllQuestions }) => {
     const [isUpdating, setIsUpdating] = useState(false);
     const [uploadStatus, setUploadStatus] = useState('');
     const [editingField, setEditingField] = useState(null);
@@ -168,6 +168,27 @@ const QuestionEditor = ({ question, onUpdate, onToggleImageType }) => {
             const updatedRes = await updateQuestion(question.id, updateData);
             console.log("updatedRes from api", updatedRes)
             setUploadStatus('Update successful!');
+        } catch (error) {
+            console.error('Update failed:', error);
+            setUploadStatus('Update failed!');
+            alert(`Update failed: ${error.message}`);
+        } finally {
+            setIsUpdating(false);
+        }
+    };
+
+    const handleUpdateAllQuestions = async () => {
+        if (!question.file_name) {
+            alert('No file name associated with this question');
+            return;
+        }
+
+        setIsUpdating(true);
+        setUploadStatus('Updating all questions...');
+
+        try {
+            await onUpdateAllQuestions(question.file_name);
+            setUploadStatus('All questions updated successfully!');
         } catch (error) {
             console.error('Update failed:', error);
             setUploadStatus('Update failed!');
@@ -498,7 +519,9 @@ const QuestionEditor = ({ question, onUpdate, onToggleImageType }) => {
                                             const newValues = e.target.checked
                                                 ? [...selectedValues, option]
                                                 : selectedValues.filter(v => v !== option);
-                                            const answerString = newValues.join(', ');
+                                            // Sort the values alphabetically before joining
+                                            const sortedValues = newValues.sort();
+                                            const answerString = sortedValues.join(', ');
                                             handleTempChange(property, answerString);
                                             // Immediately update the question with the new answer
                                             const updatedQuestion = {
@@ -677,14 +700,16 @@ const QuestionEditor = ({ question, onUpdate, onToggleImageType }) => {
                     </div>
                 </div>
 
-                {/* Update Button */}
-                <div className="border-t pt-3 flex justify-end">
+                {/* Update Buttons */}
+                <div className="border-t pt-3 flex justify-between">
                     <button
                         className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition-all font-medium flex items-center gap-2 text-sm"
-                        onClick={handleUpdateQuestion}
-                        disabled={isUpdating}
+                        onClick={() => onUpdate(question)}
                     >
-                        {isUpdating ? '⏳ Updating...' : '💾 Save Changes'}
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                        </svg>
+                        Update Question
                     </button>
                 </div>
 
@@ -719,11 +744,13 @@ QuestionEditor.propTypes = {
         subject: PropTypes.string,
         chapter: PropTypes.string,
         answer: PropTypes.string,
+        file_name: PropTypes.string,
     }).isRequired,
     onUpdate: PropTypes.func.isRequired,
     onToggleImageType: PropTypes.func.isRequired,
     onAddBox: PropTypes.func.isRequired,
     onDeleteBox: PropTypes.func.isRequired,
+    onUpdateAllQuestions: PropTypes.func.isRequired,
 };
 
 export default QuestionEditor; 
