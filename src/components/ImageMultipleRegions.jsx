@@ -388,7 +388,7 @@ const ImageMultipleRegions = ({ onImageSelect, onBoxesChange, question, onQuesti
             try {
                 // Get all questions for this file
                 const questionsToUpdate = questions.filter(q => q.file_name === fileName);
-                
+
                 // Update each question in the background
                 const updatePromises = questionsToUpdate.map(async (question) => {
                     try {
@@ -431,7 +431,7 @@ const ImageMultipleRegions = ({ onImageSelect, onBoxesChange, question, onQuesti
 
     return (
         <div className="min-h-screen bg-gray-100">
-            <Toaster 
+            <Toaster
                 position="top-right"
                 toastOptions={{
                     duration: 4000,
@@ -485,29 +485,16 @@ const ImageMultipleRegions = ({ onImageSelect, onBoxesChange, question, onQuesti
                             </div>
 
                             {selectedImage && (
-                                <>
-                                    <div className="h-6 w-px bg-gray-300"></div>
-                                    <button
-                                        onClick={handleUpload}
-                                        disabled={isUploading || boxes.length === 0}
-                                        className={`px-4 py-2 ${isUploading
-                                            ? 'bg-gray-400 cursor-not-allowed'
-                                            : 'bg-blue-600 hover:bg-blue-700'
-                                            } text-white rounded-lg shadow-sm transition-all font-medium flex items-center gap-2`}
-                                    >
-                                        {isUploading ? '⏳ Uploading...' : '⬆️ Upload Boxes'}
-                                    </button>
-                                    <button
-                                        onClick={resetState}
-                                        disabled={isUploading}
-                                        className={`px-4 py-2 ${isUploading
-                                            ? 'bg-gray-400 cursor-not-allowed'
-                                            : 'bg-red-600 hover:bg-red-700'
-                                            } text-white rounded-lg shadow-sm transition-all font-medium flex items-center gap-2`}
-                                    >
-                                        🗑️ Clear & Start New
-                                    </button>
-                                </>
+                                <button
+                                    onClick={resetState}
+                                    disabled={isUploading}
+                                    className={`px-4 py-2 ${isUploading
+                                        ? 'bg-gray-400 cursor-not-allowed'
+                                        : 'bg-red-600 hover:bg-red-700'
+                                        } text-white rounded-lg shadow-sm transition-all font-medium flex items-center gap-2`}
+                                >
+                                    🗑️ Clear & Start New
+                                </button>
                             )}
                         </div>
                     </div>
@@ -676,46 +663,49 @@ const ImageMultipleRegions = ({ onImageSelect, onBoxesChange, question, onQuesti
                         </svg>
                         Previous
                     </button>
-                        <span className="text-sm text-gray-600">
-                            Image {currentImageIndex + 1} of {selectedImages.length}
-                        </span>
-                    
-                    <button
-                        onClick={handleNextImage}
-                        disabled={currentImageIndex === selectedImages.length - 1}
-                        className={`px-4 py-2 rounded-lg flex items-center gap-2 ${currentImageIndex === selectedImages.length - 1
-                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                            : 'bg-blue-500 text-white hover:bg-blue-600'
-                            }`}
-                    >
-                        Next
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                        </svg>
-                    </button>
+                    <span className="text-sm text-gray-600">
+                        Image {currentImageIndex + 1} of {selectedImages.length}
+                    </span>
 
-                    <div className="flex items-center gap-4">
-                        {questions && questions.length > 0 && (
-                            <button
-                                onClick={() => handleUpdateAllQuestions(fileName)}
-                                disabled={isUpdating}
-                                className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg shadow-sm transition-all font-medium flex items-center gap-2"
-                            >
-                                {isUpdating ? (
-                                    <>
-                                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                        Updating All Questions...
-                                    </>
-                                ) : (
-                                    <>
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
-                                        </svg>
-                                        Update + Next
-                                    </>
-                                )}
-                            </button>
-                        )}
+                    <div className="flex flex-row gap-4">
+
+                        <button
+                            onClick={handleNextImage}
+                            disabled={currentImageIndex === selectedImages.length - 1}
+                            className={`px-4 py-2 rounded-lg flex items-center gap-2 ${currentImageIndex === selectedImages.length - 1
+                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                : 'bg-blue-500 text-white hover:bg-blue-600'
+                                }`}
+                        >
+                            Next
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                            </svg>
+                        </button>
+
+                        <div className="flex items-center gap-4">
+                            {questions && questions.length > 0 && (
+                                <button
+                                    onClick={() => handleUpdateAllQuestions(fileName)}
+                                    disabled={isUpdating}
+                                    className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg shadow-sm transition-all font-medium flex items-center gap-2"
+                                >
+                                    {isUpdating ? (
+                                        <>
+                                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                            Updating All Questions...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                                            </svg>
+                                            Update + Next
+                                        </>
+                                    )}
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
