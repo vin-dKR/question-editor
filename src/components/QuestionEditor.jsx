@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import { deleteImageFromSupabase } from '../utils/imageUpload';
 import { updateQuestion, prepareQuestionUpdateData } from '../services/questionService';
+import { renderMixedLatex } from '../utils/latex-render';
 
 const QuestionEditor = ({ question, onUpdate, onToggleImageType, onUpdateAllQuestions }) => {
     const [isUpdating, setIsUpdating] = useState(false);
@@ -362,7 +363,7 @@ const QuestionEditor = ({ question, onUpdate, onToggleImageType, onUpdateAllQues
                     </div>
                 ) : (
                     <div className="w-full px-2 py-1 bg-gray-50 rounded-lg border border-gray-200 text-sm">
-                        {value || 'Not set'}
+                        {value ? renderMixedLatex(value) : 'Not set'}
                     </div>
                 )}
             </div>
@@ -416,7 +417,7 @@ const QuestionEditor = ({ question, onUpdate, onToggleImageType, onUpdateAllQues
                     </div>
                 ) : (
                     <div className="w-full px-2 py-1 bg-gray-50 rounded-lg border border-gray-200 text-sm">
-                        {value || 'Not set'}
+                        {value ? renderMixedLatex(value) : 'Not set'}
                     </div>
                 )}
             </div>
@@ -475,7 +476,7 @@ const QuestionEditor = ({ question, onUpdate, onToggleImageType, onUpdateAllQues
                     </div>
                 ) : (
                     <div className="w-full px-2 py-1 bg-gray-50 rounded-lg border border-gray-200 text-sm">
-                        {value || 'Not set'}
+                        {value ? renderMixedLatex(value) : 'Not set'}
                     </div>
                 )}
             </div>
@@ -554,7 +555,7 @@ const QuestionEditor = ({ question, onUpdate, onToggleImageType, onUpdateAllQues
                     </div>
                 ) : (
                     <div className="w-full px-2 py-1 bg-gray-50 rounded-lg border border-gray-200 text-sm">
-                        {value || 'Not set'}
+                        {value ? renderMixedLatex(value) : 'Not set'}
                     </div>
                 )}
             </div>
@@ -665,7 +666,7 @@ const QuestionEditor = ({ question, onUpdate, onToggleImageType, onUpdateAllQues
                                 ) : (
                                     <>
                                         <div className="flex-1 px-2 py-1 bg-gray-50 rounded-lg border border-gray-200 text-sm">
-                                            {option || 'Not set'}
+                                            {option ? renderMixedLatex(option) : 'Not set'}
                                         </div>
                                         <button
                                             onClick={() => {
