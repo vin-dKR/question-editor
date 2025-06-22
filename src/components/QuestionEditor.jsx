@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
-import { deleteImageFromSupabase } from '../utils/imageUpload';
 import { updateQuestion, prepareQuestionUpdateData } from '../services/questionService';
 import { renderMixedLatex } from '../utils/latex-render';
+import { refineQuestionWithAI } from '../services/aiService';
+import toast from 'react-hot-toast';
 
 const QuestionEditor = ({ question, onUpdate, onToggleImageType, onUpdateAllQuestions }) => {
     const [isUpdating, setIsUpdating] = useState(false);
+    const [isRefining, setIsRefining] = useState(false);
     const [uploadStatus, setUploadStatus] = useState('');
     const [editingField, setEditingField] = useState(null);
     const [tempValues, setTempValues] = useState({});
@@ -63,95 +65,28 @@ const QuestionEditor = ({ question, onUpdate, onToggleImageType, onUpdateAllQues
         }
     };
 
-    {/*
-    const handleDeleteImage = async (type, optionIndex = null) => {
-        try {
-            let fileName;
-            if (type === 'question') {
-                fileName = question.question_image?.split('/').pop();
-                if (fileName) {
-                    await deleteImageFromSupabase(fileName);
-                    handlePropertyChange('question_image', null);
-                }
-            } else if (type === 'option' && optionIndex !== null) {
-                const optionImage = question.option_images?.[optionIndex];
-                if (optionImage) {
-                    fileName = optionImage.split('/').pop();
-                    await deleteImageFromSupabase(fileName);
-                    const newOptionImages = [...(question.option_images || [])];
-                    newOptionImages[optionIndex] = null;
-                    handlePropertyChange('option_images', newOptionImages);
-                }
+    const handleRefine = async () => {
+        setIsRefining(true);
+        const refinePromise = refineQuestionWithAI(question);
+
+        toast.promise(refinePromise, {
+            loading: 'Refining content with AI...',
+            success: (refinedData) => {
+                onUpdate({
+                    ...question,
+                    question_text: refinedData.question_text,
+                    answer: refinedData.answer,
+                    options: refinedData.options
+                });
+                setIsRefining(false);
+                return 'Content refined successfully!';
+            },
+            error: (err) => {
+                setIsRefining(false);
+                return `Refinement failed: ${err.message}`;
             }
-        } catch (error) {
-            console.error('Error deleting image:', error);
-            alert(`Failed to delete image: ${error.message}`);
-        }
+        });
     };
-
-    const handleUploadImage = async (type, optionIndex = null) => {
-        if (!question.file_name) {
-            alert('Please select an image file first');
-            return;
-        }
-
-        setUploadStatus('Uploading image...');
-
-        try {
-            // Delete existing image if any
-            await handleDeleteImage(type, optionIndex);
-
-            // Get the image element
-            const imageElement = document.querySelector('img[alt="Selected"]');
-            if (!imageElement) {
-                throw new Error('No image selected');
-            }
-
-            // Get the bounding box for this question/option
-            const boxSelector = type === 'question' ? '.question-box' : '.option-box';
-            const boxes = document.querySelectorAll(boxSelector);
-            const box = type === 'question' ? boxes[0] : boxes[optionIndex];
-
-            if (!box) {
-                throw new Error(`No bounding box found for ${type} image`);
-            }
-
-            const rect = box.getBoundingClientRect();
-            const imageRect = imageElement.getBoundingClientRect();
-
-            // Calculate crop coordinates relative to the image
-            const cropBox = {
-                name: type === 'question'
-                    ? `${question.question_number}_${question.file_name}`
-                    : `${question.question_number}_option${optionIndex + 1}_${question.file_name}`,
-                left: Math.round((rect.left - imageRect.left) * (imageElement.naturalWidth / imageRect.width)),
-                top: Math.round((rect.top - imageRect.top) * (imageElement.naturalHeight / imageRect.height)),
-                right: Math.round((rect.right - imageRect.left) * (imageElement.naturalWidth / imageRect.width)),
-                bottom: Math.round((rect.bottom - imageRect.top) * (imageElement.naturalHeight / imageRect.height)),
-                index: optionIndex || 0
-            };
-
-            // Upload image
-            const result = await cropAndUploadImage(imageElement.src, cropBox);
-
-            // Update question with new image URL
-            if (type === 'question') {
-                handlePropertyChange('question_image', result.url);
-            } else {
-                const newOptionImages = [...(question.option_images || [])];
-                newOptionImages[optionIndex] = result.url;
-                handlePropertyChange('option_images', newOptionImages);
-            }
-
-            setUploadStatus('Upload successful!');
-        } catch (error) {
-            console.error('Upload failed:', error);
-            setUploadStatus('Upload failed!');
-            alert(`Upload failed: ${error.message}`);
-        } finally {
-        }
-    };
-    */}
 
     const handleUpdateQuestion = async () => {
         console.log(question.id)
@@ -199,86 +134,6 @@ const QuestionEditor = ({ question, onUpdate, onToggleImageType, onUpdateAllQues
         }
     };
 
-    {/*
-    const handleAddOptionImage = () => {
-        const newOptionImages = [...(question.option_images || []), ""];
-        handlePropertyChange('option_images', newOptionImages);
-    };
-
-    const handleRemoveOptionImage = (index) => {
-        const newOptionImages = [...(question.option_images || [])];
-        newOptionImages.splice(index, 1);
-        handlePropertyChange('option_images', newOptionImages);
-    };
-
-    const handleUploadOptionImages = async () => {
-        if (!question.file_name) {
-            alert('Please select an image file first');
-            return;
-        }
-
-        setUploadStatus('Uploading option images...');
-
-        try {
-            // Delete existing option images
-            if (question.option_images) {
-                for (let i = 0; i < question.option_images.length; i++) {
-                    await handleDeleteImage('option', i);
-                }
-            }
-
-            const imageElement = document.querySelector('img[alt="Selected"]');
-            if (!imageElement) {
-                throw new Error('No image selected');
-            }
-
-            // Get all option boxes for this question
-            const optionBoxes = document.querySelectorAll(`.option-box[data-question-id="${question.id}"]`);
-            if (optionBoxes.length === 0) {
-                throw new Error('No option boxes found. Please add boxes first.');
-            }
-
-            const imageRect = imageElement.getBoundingClientRect();
-            const uploadPromises = Array.from(optionBoxes).map(async (box, index) => {
-                const rect = box.getBoundingClientRect();
-
-                // Calculate crop coordinates relative to the image
-                const cropBox = {
-                    name: `${question.question_number}_option${index + 1}_${question.file_name}`,
-                    left: Math.round((rect.left - imageRect.left) * (imageElement.naturalWidth / imageRect.width)),
-                    top: Math.round((rect.top - imageRect.top) * (imageElement.naturalHeight / imageRect.height)),
-                    right: Math.round((rect.right - imageRect.left) * (imageElement.naturalWidth / imageRect.width)),
-                    bottom: Math.round((rect.bottom - imageRect.top) * (imageElement.naturalHeight / imageRect.height)),
-                    index
-                };
-
-                return cropAndUploadImage(imageElement.src, cropBox);
-            });
-
-            const results = await Promise.all(uploadPromises);
-
-            // Update option images with new URLs
-            const newOptionImages = results.map(result => result.url);
-            handlePropertyChange('option_images', newOptionImages);
-
-            // Update the question in the database
-            const updateData = prepareQuestionUpdateData({
-                ...question,
-                option_images: newOptionImages
-            });
-            await updateQuestion(question.id, updateData);
-
-            setUploadStatus('Option Images Upload successful!');
-        } catch (error) {
-            console.error('Upload failed:', error);
-            setUploadStatus('Option Images Upload failed!');
-            alert(`Upload failed: ${error.message}`);
-        } finally {
-        }
-    };
-
-    */}
-
     const renderField = (label, property, type = 'text', options = null) => {
         const isEditing = editingField === property;
         const value = isEditing ? (tempValues[property] ?? question[property] ?? '') : (question[property] ?? '');
@@ -299,22 +154,40 @@ const QuestionEditor = ({ question, onUpdate, onToggleImageType, onUpdateAllQues
             <div className="relative">
                 <div className="flex items-center justify-between mb-1">
                     <label className="block text-sm font-medium text-gray-700">{label}</label>
-                    {!isEditing && (
-                        <button
-                            onClick={() => {
-                                setEditingField(property);
-                                setTempValues(prev => ({
-                                    ...prev,
-                                    [property]: question[property] ?? ''
-                                }));
-                            }}
-                            className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                            </svg>
-                        </button>
-                    )}
+                    <div className="flex items-center gap-2">
+                        {property === 'question_text' && !isEditing && (
+                            <button
+                                onClick={handleRefine}
+                                disabled={isRefining}
+                                className="p-1 text-blue-500 hover:text-blue-700 transition-colors disabled:text-gray-400 disabled:cursor-not-allowed"
+                                title="Refine with AI"
+                            >
+                                {isRefining ? (
+                                    <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                                ) : (
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                                    </svg>
+                                )}
+                            </button>
+                        )}
+                        {!isEditing && (
+                            <button
+                                onClick={() => {
+                                    setEditingField(property);
+                                    setTempValues(prev => ({
+                                        ...prev,
+                                        [property]: question[property] ?? ''
+                                    }));
+                                }}
+                                className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                </svg>
+                            </button>
+                        )}
+                    </div>
                 </div>
                 {isEditing ? (
                     <div className="flex gap-2">
@@ -395,7 +268,7 @@ const QuestionEditor = ({ question, onUpdate, onToggleImageType, onUpdateAllQues
                 {isEditing ? (
                     <div className="flex gap-2">
                         <textarea
-                            value={value}
+                            value={renderMixedLatex(value)}
                             onChange={e => handleTempChange(property, e.target.value)}
                             onBlur={() => handleEditComplete(property)}
                             rows={3}
@@ -486,7 +359,7 @@ const QuestionEditor = ({ question, onUpdate, onToggleImageType, onUpdateAllQues
     const renderMultipleCorrectAnswer = (label, property, value, isEditing) => {
         const options = ['A', 'B', 'C', 'D'];
         const selectedValues = value ? value.split(',').map(v => v.trim()) : [];
-        
+
         return (
             <div className="relative">
                 <div className="flex items-center justify-between mb-1">
