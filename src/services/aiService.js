@@ -12,11 +12,11 @@ const openai = new OpenAI({
     dangerouslyAllowBrowser: true // This is required for client-side usage
 });
 
-export const refineQuestionWithAI = async ({ question_text, answer, options }) => {
+export const refineTextWithAI = async (text) => {
     const systemPrompt = 'You are a LaTeX formatting expert. Your job is to find and correctly wrap all LaTeX/math expressions using inline LaTeX delimiters.';
     
     const userPrompt = `
-Your task is to format LaTeX expressions in the provided question data. Use inline math delimiters only: \\\\(...\\\\)
+Your task is to format LaTeX expressions in the provided text. Use inline math delimiters only: \\\\(...\\\\)
 
 ✅ Rules:
 1. Detect all LaTeX or math expressions — such as fractions, square roots, Greek letters, subscripts, superscripts, equations, symbols, etc.
@@ -27,15 +27,11 @@ Your task is to format LaTeX expressions in the provided question data. Use inli
 6. Preserve spacing, punctuation, and formatting outside math expressions.
 
 🧪 Input:
-question_text: ${question_text}
-answer: ${answer}
-options: ${JSON.stringify(options)}
+text: "${text}"
 
 🎯 Output format (valid JSON):
 {
-  "question_text": "...",
-  "answer": "...",
-  "options": ["...", "...", "...", "..."]
+  "refined_text": "..."
 }
 
 Example: For every math expression, wrap it in \\\\(...\\\\). For example:
@@ -58,7 +54,11 @@ Example: For every math expression, wrap it in \\\\(...\\\\). For example:
 
         if (response.choices && response.choices[0]) {
             const refinedData = JSON.parse(response.choices[0].message.content);
-            return refinedData;
+            if (typeof refinedData.refined_text === 'string') {
+                return refinedData.refined_text;
+            } else {
+                 throw new Error('AI response did not contain a valid refined_text string.');
+            }
         } else {
             throw new Error('Invalid response structure from OpenAI API');
         }

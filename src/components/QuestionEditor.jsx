@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import { updateQuestion, prepareQuestionUpdateData } from '../services/questionService';
 import { renderMixedLatex } from '../utils/latex-render';
-import { refineQuestionWithAI } from '../services/aiService';
+import { refineTextWithAI } from '../services/aiService';
 import toast from 'react-hot-toast';
 
 const QuestionEditor = ({ question, onUpdate, onToggleImageType, onUpdateAllQuestions }) => {
     const [isUpdating, setIsUpdating] = useState(false);
     const [isRefining, setIsRefining] = useState(false);
+    const [refiningField, setRefiningField] = useState(null);
     const [uploadStatus, setUploadStatus] = useState('');
     const [editingField, setEditingField] = useState(null);
     const [tempValues, setTempValues] = useState({});
@@ -88,6 +89,47 @@ const QuestionEditor = ({ question, onUpdate, onToggleImageType, onUpdateAllQues
         });
     };
 
+    const handleRefineField = async (property, index = null) => {
+        const fieldIdentifier = index !== null ? `${property}_${index}` : property;
+        setRefiningField(fieldIdentifier);
+
+        let textToRefine = '';
+        if (property === 'options' && index !== null) {
+            textToRefine = question.options[index];
+        } else {
+            textToRefine = question[property];
+        }
+
+        if (!textToRefine) {
+            toast.error("There is no text to refine.");
+            setRefiningField(null);
+            return;
+        }
+
+        const refinePromise = refineTextWithAI(textToRefine);
+
+        toast.promise(refinePromise, {
+            loading: 'Refining content with AI...',
+            success: (refinedText) => {
+                let updatedQuestion = { ...question };
+                if (property === 'options' && index !== null) {
+                    const newOptions = [...updatedQuestion.options];
+                    newOptions[index] = refinedText;
+                    updatedQuestion.options = newOptions;
+                } else {
+                    updatedQuestion[property] = refinedText;
+                }
+                onUpdate(updatedQuestion);
+                setRefiningField(null);
+                return 'Content refined successfully!';
+            },
+            error: (err) => {
+                setRefiningField(null);
+                return `Refinement failed: ${err.message}`;
+            }
+        });
+    };
+
     const handleUpdateQuestion = async () => {
         console.log(question.id)
         if (!question.id) {
@@ -157,12 +199,12 @@ const QuestionEditor = ({ question, onUpdate, onToggleImageType, onUpdateAllQues
                     <div className="flex items-center gap-2">
                         {property === 'question_text' && !isEditing && (
                             <button
-                                onClick={handleRefine}
-                                disabled={isRefining}
+                                onClick={() => handleRefineField('question_text')}
+                                disabled={refiningField === 'question_text'}
                                 className="p-1 text-blue-500 hover:text-blue-700 transition-colors disabled:text-gray-400 disabled:cursor-not-allowed"
                                 title="Refine with AI"
                             >
-                                {isRefining ? (
+                                {refiningField === 'question_text' ? (
                                     <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
                                 ) : (
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -248,22 +290,40 @@ const QuestionEditor = ({ question, onUpdate, onToggleImageType, onUpdateAllQues
             <div className="relative">
                 <div className="flex items-center justify-between mb-1">
                     <label className="block text-sm font-medium text-gray-700">{label}</label>
-                    {!isEditing && (
-                        <button
-                            onClick={() => {
-                                setEditingField(property);
-                                setTempValues(prev => ({
-                                    ...prev,
-                                    [property]: question[property] ?? ''
-                                }));
-                            }}
-                            className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                            </svg>
-                        </button>
-                    )}
+                    <div className="flex items-center gap-2">
+                        {!isEditing && (
+                            <button
+                                onClick={() => handleRefineField(property)}
+                                disabled={refiningField === property}
+                                className="p-1 text-blue-500 hover:text-blue-700 transition-colors disabled:text-gray-400 disabled:cursor-not-allowed"
+                                title="Refine with AI"
+                            >
+                                {refiningField === property ? (
+                                    <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                                ) : (
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                                    </svg>
+                                )}
+                            </button>
+                        )}
+                        {!isEditing && (
+                            <button
+                                onClick={() => {
+                                    setEditingField(property);
+                                    setTempValues(prev => ({
+                                        ...prev,
+                                        [property]: question[property] ?? ''
+                                    }));
+                                }}
+                                className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                </svg>
+                            </button>
+                        )}
+                    </div>
                 </div>
                 {isEditing ? (
                     <div className="flex gap-2">
@@ -384,7 +444,7 @@ const QuestionEditor = ({ question, onUpdate, onToggleImageType, onUpdateAllQues
                 {isEditing ? (
                     <div className="flex flex-col gap-2">
                         <div className="flex flex-wrap gap-2">
-                            {options.map(option => (
+                            {options.map((option, index) => (
                                 <label key={option} className="flex items-center gap-2 px-3 py-1 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
                                     <input
                                         type="checkbox"
@@ -541,34 +601,50 @@ const QuestionEditor = ({ question, onUpdate, onToggleImageType, onUpdateAllQues
                                         <div className="flex-1 px-2 py-1 bg-gray-50 rounded-lg border border-gray-200 text-sm">
                                             {option ? renderMixedLatex(option) : 'Not set'}
                                         </div>
+                                        <div className="flex items-center gap-1">
+                                            <button
+                                                onClick={() => handleRefineField('options', index)}
+                                                disabled={refiningField === `options_${index}`}
+                                                className="p-1 text-blue-500 hover:text-blue-700 transition-colors disabled:text-gray-400 disabled:cursor-not-allowed"
+                                                title="Refine with AI"
+                                            >
+                                                {refiningField === `options_${index}` ? (
+                                                    <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                                                ) : (
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                                                    </svg>
+                                                )}
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setEditingField(`option_${index}`);
+                                                    setTempValues(prev => ({
+                                                        ...prev,
+                                                        [`option_${index}`]: option ?? ''
+                                                    }));
+                                                }}
+                                                className="p-1 text-gray-400 hover:text-gray-600"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                                </svg>
+                                            </button>
+                                        </div>
                                         <button
                                             onClick={() => {
-                                                setEditingField(`option_${index}`);
-                                                setTempValues(prev => ({
-                                                    ...prev,
-                                                    [`option_${index}`]: option ?? ''
-                                                }));
+                                                const newOptions = [...question.options];
+                                                newOptions.splice(index, 1);
+                                                handlePropertyChange('options', newOptions);
                                             }}
-                                            className="p-1 text-gray-400 hover:text-gray-600"
+                                            className="p-1 text-red-500 hover:text-red-600"
                                         >
                                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                                <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
                                             </svg>
                                         </button>
                                     </>
                                 )}
-                                <button
-                                    onClick={() => {
-                                        const newOptions = [...question.options];
-                                        newOptions.splice(index, 1);
-                                        handlePropertyChange('options', newOptions);
-                                    }}
-                                    className="p-1 text-red-500 hover:text-red-600"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                                    </svg>
-                                </button>
                             </div>
                         ))}
                     </div>
