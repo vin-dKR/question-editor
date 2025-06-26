@@ -48,6 +48,7 @@ export const prepareQuestionUpdateData = (question) => {
         exam_name: question.exam_name,
         subject: question.subject,
         chapter: question.chapter,
-        answer: question.answer
+        answer: question.answer,
+        flagged: question.flagged || false
     };
 }; 

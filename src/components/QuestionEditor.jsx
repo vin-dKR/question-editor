@@ -6,8 +6,6 @@ import { refineTextWithAI } from '../services/aiService';
 import toast from 'react-hot-toast';
 
 const QuestionEditor = ({ question, onUpdate, onToggleImageType, onUpdateAllQuestions }) => {
-    const [isUpdating, setIsUpdating] = useState(false);
-    const [isRefining, setIsRefining] = useState(false);
     const [refiningField, setRefiningField] = useState(null);
     const [uploadStatus, setUploadStatus] = useState('');
     const [editingField, setEditingField] = useState(null);
@@ -55,38 +53,24 @@ const QuestionEditor = ({ question, onUpdate, onToggleImageType, onUpdateAllQues
 
     const handleEditComplete = (property) => {
         if (tempValues[property] !== undefined) {
+            let newValue = tempValues[property];
+            if (property === 'answer' && question.question_type?.toLowerCase() === 'subjective') {
+                if (Array.isArray(newValue)) {
+                    newValue = newValue.map(v => typeof v === 'string' ? v : (v && v.text ? v.text : JSON.stringify(v))).join(' ');
+                } else if (typeof newValue === 'object' && newValue !== null) {
+                    newValue = newValue.text || JSON.stringify(newValue);
+                } else if (typeof newValue !== 'string') {
+                    newValue = newValue && newValue.toString ? newValue.toString() : '';
+                }
+            }
             const updatedQuestion = {
                 ...question,
-                [property]: tempValues[property]
+                [property]: newValue
             };
-            console.log('Completing edit with:', updatedQuestion);
             onUpdate(updatedQuestion);
             setEditingField(null);
             setTempValues({});
         }
-    };
-
-    const handleRefine = async () => {
-        setIsRefining(true);
-        const refinePromise = refineQuestionWithAI(question);
-
-        toast.promise(refinePromise, {
-            loading: 'Refining content with AI...',
-            success: (refinedData) => {
-                onUpdate({
-                    ...question,
-                    question_text: refinedData.question_text,
-                    answer: refinedData.answer,
-                    options: refinedData.options
-                });
-                setIsRefining(false);
-                return 'Content refined successfully!';
-            },
-            error: (err) => {
-                setIsRefining(false);
-                return `Refinement failed: ${err.message}`;
-            }
-        });
     };
 
     const handleRefineField = async (property, index = null) => {
@@ -137,7 +121,6 @@ const QuestionEditor = ({ question, onUpdate, onToggleImageType, onUpdateAllQues
             return;
         }
 
-        setIsUpdating(true);
         setUploadStatus('Updating question...');
 
         try {
@@ -151,34 +134,48 @@ const QuestionEditor = ({ question, onUpdate, onToggleImageType, onUpdateAllQues
             setUploadStatus('Update failed!');
             alert(`Update failed: ${error.message}`);
         } finally {
-            setIsUpdating(false);
         }
     };
 
-    const handleUpdateAllQuestions = async () => {
-        if (!question.file_name) {
-            alert('No file name associated with this question');
-            return;
-        }
 
-        setIsUpdating(true);
-        setUploadStatus('Updating all questions...');
+    const handleToggleFlag = async () => {
+        const updatedQuestion = {
+            ...question,
+            flagged: !question.flagged,
+        };
+        onUpdate(updatedQuestion); // Update parent state immediately
 
         try {
-            await onUpdateAllQuestions(question.file_name);
-            setUploadStatus('All questions updated successfully!');
+            // Persist the flag change to the backend
+            await toast.promise(updateQuestion(question.id, { flagged: updatedQuestion.flagged }), {
+                loading: 'Updating flag status...',
+                success: 'Flag status updated!',
+                error: 'Could not update flag status.',
+            });
         } catch (error) {
-            console.error('Update failed:', error);
-            setUploadStatus('Update failed!');
-            alert(`Update failed: ${error.message}`);
-        } finally {
-            setIsUpdating(false);
+            // The toast promise will handle displaying the error.
+            // We can also revert the state change if we want.
+            onUpdate(question); // Revert optimistic update on failure
         }
     };
 
     const renderField = (label, property, type = 'text', options = null) => {
         const isEditing = editingField === property;
-        const value = isEditing ? (tempValues[property] ?? question[property] ?? '') : (question[property] ?? '');
+        let value = isEditing ? (tempValues[property] ?? question[property] ?? '') : (question[property] ?? '');
+
+        // Fix: For subjective answers, always use string
+        if (property === 'answer' && question.question_type?.toLowerCase() === 'subjective') {
+            if (Array.isArray(value)) {
+                value = value.map(v => typeof v === 'string' ? v : (v && v.text ? v.text : JSON.stringify(v))).join(' ');
+            } else if (typeof value === 'object' && value !== null) {
+                value = value.text || JSON.stringify(value);
+            } else if (typeof value !== 'string') {
+                value = value && value.toString ? value.toString() : '';
+            }
+        }
+
+        // Determine if we should expand the answer field
+        const expandAnswer = property === 'answer' && isEditing && question.question_type?.toLowerCase() === 'subjective';
 
         // Special handling for answer field based on question type
         if (property === 'answer') {
@@ -193,7 +190,7 @@ const QuestionEditor = ({ question, onUpdate, onToggleImageType, onUpdateAllQues
         }
 
         return (
-            <div className="relative">
+            <div className={`relative${expandAnswer ? ' col-span-3' : ''}`}>
                 <div className="flex items-center justify-between mb-1">
                     <label className="block text-sm font-medium text-gray-700">{label}</label>
                     <div className="flex items-center gap-2">
@@ -328,11 +325,11 @@ const QuestionEditor = ({ question, onUpdate, onToggleImageType, onUpdateAllQues
                 {isEditing ? (
                     <div className="flex gap-2">
                         <textarea
-                            value={renderMixedLatex(value)}
+                            value={value}
                             onChange={e => handleTempChange(property, e.target.value)}
                             onBlur={() => handleEditComplete(property)}
                             rows={3}
-                            className="flex-1 px-2 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                            className="flex-1 px-2 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm "
                         />
                         <button
                             onClick={() => {
@@ -532,18 +529,19 @@ const QuestionEditor = ({ question, onUpdate, onToggleImageType, onUpdateAllQues
             </div>
 
             <div className="p-4 space-y-4">
-                <div className="grid grid-cols-3 gap-3">
-                    {renderField('Question Type', 'question_type', 'select', questionTypes)}
-                    {renderField('Section Name', 'section_name', 'select', sectionNames)}
-                    {renderField('Topic', 'topic')}
+                <div className="grid grid-cols-7 gap-3">
+                    <div className="col-span-3">{renderField('Question Type', 'question_type', 'select', questionTypes)}</div>
+                    <div className="col-span-2">{renderField('Section Name', 'section_name', 'select', sectionNames)}</div>
+                    <div className="col-span-2">{renderField('Topic', 'topic')}</div>
                     {/*
                     {renderField('Exam Name', 'exam_name')}
                     {renderField('Subject', 'subject')}
                     {renderField('Chapter', 'chapter')}
                     */}
+                </div>
+                <div className="mt-2 w-1/2">
                     {renderField('Answer', 'answer')}
                 </div>
-
                 {/* Question Text */}
                 <div className="mt-2">
                     {renderField('Question Text', 'question_text', 'textarea')}
@@ -651,13 +649,27 @@ const QuestionEditor = ({ question, onUpdate, onToggleImageType, onUpdateAllQues
                 </div>
 
                 {/* Update Buttons */}
-                <div className="border-t pt-3 flex justify-end">
+                <div className="border-t pt-3 flex justify-between items-center">
+                    <button
+                        onClick={handleToggleFlag}
+                        className={`p-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                            question.flagged
+                                ? 'bg-red-500 text-white hover:bg-red-600 focus:ring-red-500'
+                                : 'bg-gray-200 text-gray-600 hover:bg-gray-300 focus:ring-indigo-500'
+                        }`}
+                        title={question.flagged ? 'Unflag Question' : 'Flag Question for Review'}
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 8l2.55 3.4a1 1 0 01-.8 1.6H6a3 3 0 01-3-3V6zm3-1a1 1 0 00-1 1v4a1 1 0 001 1h7.25l-2.1-2.8a1 1 0 010-1.2L10.25 5H6z" clipRule="evenodd" />
+                        </svg>
+                    </button>
                     <button
                         className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition-all font-medium flex items-center gap-2 text-sm"
                         onClick={handleUpdateQuestion}
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                            <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" />
+                            <path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" />
                         </svg>
                         Update Question
                     </button>
@@ -695,6 +707,7 @@ QuestionEditor.propTypes = {
         chapter: PropTypes.string,
         answer: PropTypes.string,
         file_name: PropTypes.string,
+        flagged: PropTypes.bool
     }).isRequired,
     onUpdate: PropTypes.func.isRequired,
     onToggleImageType: PropTypes.func.isRequired,
